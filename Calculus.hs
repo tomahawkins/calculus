@@ -64,7 +64,7 @@ solve = \case
 
   -- Constant multiple rule.
   Der (Mul (Const a) b) -> Const a * d'dx' b
-  Der (Mul a (Const b)) -> d'dx' a * Const b
+  Der (Mul a (Const b)) -> Const b * d'dx' a
   Der (Neg a) -> - d'dx' a
 
   -- Power rule.
