@@ -4,8 +4,8 @@ module Calculus where
 
 -- Math expressions.
 data Expr
-  = X              --  Variable
-  | Const Int      --  Constant
+  = X              --  x
+  | Const Int      --  22
   | Add Expr Expr  --  a + b
   | Mul Expr Expr  --  a * b
   | Pow Expr Expr  --  a ^^^ b
@@ -13,7 +13,9 @@ data Expr
   | Der Expr       --  d/dx (a)
   deriving Eq
 
--- Get +, -, * syntax for free.
+-- Syntax helpers.
+
+-- Get +, -, * from the Num type class.
 instance Num Expr where
   (+) = Add
   a - b = a + Neg b
@@ -23,20 +25,18 @@ instance Num Expr where
   fromInteger a = Const (fromInteger a)
   negate = Neg
 
--- Syntax helpers.
-
 -- X variable reference.
 x :: Expr
 x = X
-
--- Derivative "operator".
-d'dx :: Expr -> Expr
-d'dx = Der
 
 -- Power operator.
 infixr 8 ^^^
 (^^^) :: Expr -> Expr -> Expr
 (^^^) = Pow
+
+-- Derivative "operator".
+d'dx :: Expr -> Expr
+d'dx = Der
 
 -- Pretty print math expressions.
 instance Show Expr where
@@ -49,9 +49,9 @@ instance Show Expr where
     Neg a -> "(- " <> show a <> ")" 
     Der a -> "(d'dx " <> show a <> ")"
 
--- Differentiate.  Symbolically compute the derivative.
-diff :: Expr -> Expr
-diff = \case
+-- Solve derivatives.
+solve :: Expr -> Expr
+solve = \case
 
   -- Single variable rule.
   Der X -> 1
@@ -60,12 +60,12 @@ diff = \case
   Der (Const _) -> 0
 
   -- Sum rule.
-  Der (Add a b) -> diff (d'dx a) + diff (d'dx b)
+  Der (Add a b) -> d'dx' a + d'dx' b
 
   -- Constant multiple rule.
-  Der (Mul (Const a) b) -> Const a * diff (d'dx b)
-  Der (Mul a (Const b)) -> diff (d'dx a) * Const b
-  Der (Neg a) -> - diff (d'dx a)
+  Der (Mul (Const a) b) -> Const a * d'dx' b
+  Der (Mul a (Const b)) -> d'dx' a * Const b
+  Der (Neg a) -> - d'dx' a
 
   -- Power rule.
   Der (Pow X (Const b)) -> Const b * x ^^^ (Const b - 1)
@@ -73,10 +73,15 @@ diff = \case
   -- Give up.
   a -> a
 
+  where
+
+  d'dx' a = solve (d'dx a)
+
 -- Simplify expressions.  Basic bottom-up reductions.
 simplify :: Expr -> Expr
 simplify = \case
-  Neg (Const a) -> Const (- a)
+  Neg a -> case simplify a of
+    Const a -> Const (- a)
   Add a b -> case (simplify a, simplify b) of
     (Const a, Const b) -> Const (a + b)
     (a, Const 0) -> a
@@ -98,16 +103,17 @@ simplify = \case
 
 -- Simple example.
 example :: Expr
-example = d'dx (x ^^^ 2 + 10 * x + 3)
+example = d'dx (3 * x ^^^ 2 + 10 * x + 8)
 
 -- Run it!
 main :: IO ()
 main = do
+  putStrLn ""
   putStrLn "Hey Kimo!  You proud of me?  I'm the first dude here!  What's calculus?"
   putStrLn ""
-  putStrLn $ "Original problem:    " <> show example
-  putStrLn $ "Differentiation:     " <> show (diff example)
-  putStrLn $ "With simplification: " <> show (simplify (diff example))
+  putStrLn $ "Expression:  " <> show example
+  putStrLn $ "Solved:      " <> show (solve example)
+  putStrLn $ "Simplified:  " <> show (simplify (solve example))
   putStrLn ""
 
 
