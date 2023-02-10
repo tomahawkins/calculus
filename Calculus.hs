@@ -80,26 +80,53 @@ solve = \case
 -- Simplify expressions.  Basic bottom-up reductions.
 simplify :: Expr -> Expr
 simplify = \case
+
+  -- Negation of constants.
   Neg a -> case simplify a of
     Const a -> Const (- a)
+    a -> Neg a
+
+  -- Addition reductions.  If there is a constant, always return it on the right branch.
   Add a b -> case (simplify a, simplify b) of
     (Const a, Const b) -> Const (a + b)
     (a, Const 0) -> a
     (Const 0, b) -> b
+    (Const a, Add b0 (Const b1)) -> Add b0 (Const (a + b1))
+    (Add a0 (Const a1), Const b) -> Add a0 (Const (a1 + b))
+    (Add a0 (Const a1), Add b0 (Const b1)) -> Add (Add a0 b0) (Const (a1 + b1))
+    (Add a0 (Const a1), b) -> Add (Add a0 b) (Const a1)
+    (a, Add b0 (Const b1)) -> Add (Add a b0) (Const b1)
+    (Const a, b) -> Add b (Const a)
+    (a, Const b) -> Add a (Const b)
     (a, b) -> Add a b
+
+  -- Multiply reductions.  If there is a constant, always return it on the left branch.
   Mul a b -> case (simplify a, simplify b) of
     (Const a, Const b) -> Const (a * b)
     (_, Const 0) -> Const 0
     (Const 0, _) -> Const 0
     (a, Const 1) -> a
     (Const 1, b) -> b
+    (Const a, Mul (Const b0) b1) -> Mul (Const (a * b0)) b1
+    (Mul (Const a0) a1, Const b) -> Mul (Const (a0 * b)) a1
+    (Mul (Const a0) a1, Mul (Const b0) b1) -> Mul (Const (a0 * b0)) (Mul a1 b1)
+    (Mul (Const a0) a1, b) -> Mul (Const a0) (Mul a1 b)
+    (a, Mul (Const b0) b1) -> Mul (Const b0) (Mul a b1)
+    (Const a, b) -> Mul (Const a) b
+    (a, Const b) -> Mul (Const b) a
     (a, b) -> Mul a b
+
+  -- Power of 0 and power of 1 simplifications.
   Pow a b -> case (simplify a, simplify b) of
     (_, Const 0) -> Const 1
     (a, Const 1) -> a
     (a, b) -> Pow a b
+
+  -- Decensd below Der to simplify subexpression.
   Der a -> d'dx (simplify a)
-  a -> a
+
+  X -> x
+  Const a -> Const a
 
 -- Simple example.
 example :: Expr
